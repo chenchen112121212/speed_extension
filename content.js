@@ -3938,20 +3938,80 @@
         }()
     }
     )()
-    // 在最后添加（在 })(); 之前）
-window.__ccbSpeedControl = {
-  setSpeed: function(speed) {
-    // 通过发送消息触发速度变更（Global Speed 内部监听此消息）
-    chrome.runtime.sendMessage({
-      type: "SET_TEMPORARY_SPEED",
-      factor: parseFloat(speed) / 1.0  // 假设默认速度为1
+
+(() => {
+    const SOURCE = "ccb-speed-control";
+    const BRIDGE_ID = "__ccb_speed_control_bridge__";
+    let currentSpeed = 1;
+
+    function applySpeedToMedia(factor) {
+        document.querySelectorAll("video, audio").forEach(media => {
+            media.playbackRate = factor;
+        });
+    }
+
+    function injectBridgeIntoPage() {
+        if (document.getElementById(BRIDGE_ID)) {
+            return;
+        }
+
+        const script = document.createElement("script");
+        script.id = BRIDGE_ID;
+        script.textContent = `(() => {
+            window.__ccbSpeedControl = {
+                setSpeed(speed) {
+                    window.postMessage({ source: "${SOURCE}", type: "SET_SPEED", factor: Number(speed) }, "*");
+                    return true;
+                },
+                getSpeed() {
+                    return null;
+                }
+            };
+        })();`;
+
+        (document.documentElement || document.head || document.body).appendChild(script);
+        script.remove();
+    }
+
+    function applyCurrentSpeed() {
+        if (!Number.isFinite(currentSpeed) || currentSpeed <= 0) {
+            currentSpeed = 1;
+        }
+        applySpeedToMedia(currentSpeed);
+    }
+
+    window.addEventListener("message", event => {
+        const data = event.data;
+        if (!data || data.source !== SOURCE || data.type !== "SET_SPEED") {
+            return;
+        }
+
+        const factor = Number(data.factor);
+        if (!Number.isFinite(factor) || factor <= 0) {
+            return;
+        }
+
+        currentSpeed = factor;
+        applyCurrentSpeed();
     });
-    return true;
-  },
-  getSpeed: function() {
-    // 无法直接获取，但可以忽略
-    return null;
-  }
-};
+
+    injectBridgeIntoPage();
+    applyCurrentSpeed();
+
+    const observer = new MutationObserver(() => {
+        injectBridgeIntoPage();
+        applyCurrentSpeed();
+    });
+
+    const startObserver = () => {
+        if (document.documentElement) {
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+        } else {
+            setTimeout(startObserver, 0);
+        }
+    };
+
+    startObserver();
+})();
 }
 )();
