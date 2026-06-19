@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CCB Speed Controller",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CCB挂课系统速度控制扩展",
   "permissions": [],
   "host_permissions": ["https://u.ccb.com/*"],

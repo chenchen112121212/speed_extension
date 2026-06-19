@@ -4013,5 +4013,14 @@
 
     startObserver();
 })();
-}
-)();
+
+    const startObserver = () => {
+        if (document.documentElement) {
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+        } else {
+            setTimeout(startObserver, 0);
+        }
+    };
+
+    startObserver();
+})();
